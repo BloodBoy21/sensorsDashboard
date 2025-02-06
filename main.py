@@ -1,8 +1,62 @@
-from fasthtml.common import *
+from fasthtml.common import (
+    Titled,
+    P,
+    Script,
+    Link,
+    Meta,
+    EventStream,
+    serve,
+    sse_message,
+    fast_app,
+    signal_shutdown,
+    Div,
+)
 from lib.mqtt import init_mqtt
 from asyncio import sleep
 import json
-from lib.sensors import my_dashboard
+from lib.dashboard import my_dashboard
+from lib.sensor import Sensor, View, Layout
+
+
+list_of_sensors = [
+    Sensor(
+        "temperature",
+        "Living Room",
+        layout=Layout(
+            title="Temperature sensor",
+            width=400,
+            height=400,
+        ),
+        view_data=[
+            View(
+                title="Temperature",
+                type="indicator",
+                mode="number+gauge",
+                domain={"x": [0, 1], "y": [0, 1]},
+            )
+        ],
+    ),
+    Sensor(
+        "humidity",
+        "Living Room",
+        layout=Layout(
+            title="Humidity sensor",
+            width=400,
+            height=400,
+        ),
+        view_data=[
+            View(
+                title="Humidity",
+                type="indicator",
+                mode="number+gauge",
+                domain={"x": [0, 1], "y": [0, 1]},
+            )
+        ],
+    ),
+]
+
+my_dashboard.add_sensors(list_of_sensors)
+
 
 favicons = (
     Link(
@@ -46,45 +100,21 @@ def get():
     return Titled(
         "My sensors",
         P("Watch real time sensor update", cls="text-body-secondary"),
-        Div(id="temperature-chart", cls="chart"),
-        Script(
-            """
-            var source = new EventSource("/temperature-stream");
-            source.onmessage = function(event) {
-                let data = event.data;
-                const parser = new DOMParser();
-            const decodedData = parser.parseFromString(data, "text/html").documentElement.textContent;
-            const jsonData = JSON.parse(decodedData);
-            const graphData = [{
-                    domain: {x: [0, 1], y: [0, 1]},
-                    value: jsonData.temperature,
-                    title: {text: "Temperature"},
-                    type: "indicator",
-                    mode: "number+gauge"
-                }];
-            const layout = {
-                "title": "Temperature sensor",
-                "width": 400,
-                "height": 400,
-            }
-                Plotly.newPlot('temperature-chart', graphData);
-            };
-            """
-        ),
+        Div(cls="container my-2")(Div(cls="row g-4")(*my_dashboard.view_divs())),
+        my_dashboard.view_script(),
     )
 
 
-# SSE data stream for temperature updates
-async def temperature_stream():
+async def data_stream():
     while not shutdown_event.is_set():
         sensors_data = my_dashboard.read_all()
         yield sse_message(json.dumps(sensors_data))
-        await sleep(1)  # Update every second
+        await sleep(10)  # Update every 10 second
 
 
-@rt("/temperature-stream")
+@rt("/data-stream")
 async def get():
-    return EventStream(temperature_stream())
+    return EventStream(data_stream())
 
 
 serve()

@@ -2,7 +2,7 @@ import random
 import os
 from paho.mqtt import client as mqtt_client
 import dotenv
-from .sensors import my_dashboard
+from .dashboard import my_dashboard
 import json
 
 # Load environment variables from .env file
