@@ -1,0 +1,15 @@
+version: "3.7"
+
+services:
+  mqtt-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mqtt-dashboard
+    restart: always
+    ports:
+      - "3000:3000"
+
+networks:
+  default:
+    driver: bridge 
